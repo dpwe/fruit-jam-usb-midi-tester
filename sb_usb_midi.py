@@ -70,11 +70,14 @@ class ScanResult:
 
 
 class MIDIInputDevice:
-    def __init__(self, scan_result):
+    def __init__(self, scan_result, read_timeout=10):
         # Prepare for reading input events from specified device
         # - scan_result: a ScanResult instance
+        # - read_timeout: timeout in ms to use for polling read()
+        #   CAUTION: setting too low of a timeout may give dropped/stuck notes
         # Exceptions: may raise usb.core.USBError
         #
+        self.read_timeout = read_timeout
         device = scan_result.device
         self.device = device
         # Make sure CircuitPython core is not claiming the device
@@ -112,7 +115,7 @@ class MIDIInputDevice:
         data = bytearray(max_packet)
         view = memoryview(data)  # using memoryview reduces heap allocations
         read = self.device.read  # caching function avoids dictionary lookups
-        ms = const(3)            # read timeout
+        ms = self.read_timeout   # read timeout
         while True:
             try:
                 # In theory, using a positional argument for the timeout should
