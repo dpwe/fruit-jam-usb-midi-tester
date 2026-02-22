@@ -38,12 +38,13 @@ def find_usb_device(device_cache):
             print(desc)
             # Get tuples of class/subclass/protocol for device and interfaces
             d = desc.dev_class_subclass()
-            i0 = desc.int_class_subclass(0)
-            i1 = desc.int_class_subclass(1)
-            if d == (0, 0) and i0 == (1, 1) and i1 == (1, 3):
-                print("interface 0 is Audio Control")
-                print("interface 1 is MIDI Streaming")
-                return ScanResult(device, desc)
+            for base in [0, 1]:
+                i0 = desc.int_class_subclass(base)
+                i1 = desc.int_class_subclass(base + 1)
+                if d == (0, 0) and i0 == (1, 1) and i1 == (1, 3):
+                    print("interface %d is Audio Control" % base)
+                    print("interface %d is MIDI Streaming" % (base + 1))
+                    return ScanResult(device, desc, base)
             else:
                 print("IGNORING UNRECOGNIZED DEVICE")
                 return None
@@ -57,14 +58,15 @@ def find_usb_device(device_cache):
 
 
 class ScanResult:
-    def __init__(self, device, descriptor):
+    def __init__(self, device, descriptor, base=0):
         self.device = device
         self.descriptor = descriptor
         self.vid = descriptor.idVendor
         self.pid = descriptor.idProduct
         self.dev_info = descriptor.dev_class_subclass()
-        self.int0_info = descriptor.int_class_subclass(0)
-        self.int1_info = descriptor.int_class_subclass(1)
+        self.int0_info = descriptor.int_class_subclass(base)
+        self.int1_info = descriptor.int_class_subclass(base + 1)
+        self.base = base
 
 
 class MIDIInputDevice:
@@ -76,7 +78,7 @@ class MIDIInputDevice:
         device = scan_result.device
         self.device = device
         # Make sure CircuitPython core is not claiming the device
-        interface = 1
+        interface = scan_result.base + 1
         if device.is_kernel_driver_active(interface):
             print('Detaching interface %d from kernel' % interface)
             device.detach_kernel_driver(interface)
